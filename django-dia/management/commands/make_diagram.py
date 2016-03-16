@@ -13,17 +13,23 @@ import random
 import os
 import six
 import gzip
+from django import get_version
 from django.template.loader import render_to_string
 from django.db import models
-from django.db.models import get_models
 from django.db.models.fields.related import ForeignKey, OneToOneField, ManyToManyField
 
-try:
-    from django.db.models.fields.generic import GenericRelation
-    assert GenericRelation
-except ImportError:
-    from django.contrib.contenttypes.generic import GenericRelation
+if get_version() >= 1.9:
+    from django.apps import apps as applications
+    get_models = applications.get_models
+    from django.contrib.contenttypes.fields import GenericRelation
+else:
+    from django.db.models import get_models
 
+    try:
+        from django.db.models.fields.generic import GenericRelation
+        assert GenericRelation
+    except ImportError:
+        from django.contrib.contenttypes.generic import GenericRelation
 
 def parse_file_or_list(arg):
     if not arg:
@@ -167,10 +173,16 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         apps = []
         if options['all_applications']:
-            apps = models.get_apps()
+            if get_version() >= 1.9:
+                apps = applications.get_models()
+            else:
+                apps = models.get_apps()
 
         for app_label in args:
-            app = models.get_app(app_label)
+            if get_version() >= 1.9:
+                app = applications.get_app(app_label)
+            else:
+                app = models.get_app(app_label)
             if app not in apps:
                 apps.append(app)
 
